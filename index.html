@@ -231,9 +231,392 @@ button,select,textarea{font:inherit}
   <div class="menu-bg" id="done" hidden><div class="menu" role="dialog" aria-modal="true" aria-labelledby="doneTitle"></div></div>
   <div class="loading" id="loading">Setting up the bay</div>
 </div>
-<script src="vendor/three/build/three.min.js"></script>
-<script src="vendor/three/examples/js/renderers/CSS3DRenderer.js"></script>
-<script src="vendor/three/examples/js/geometries/RoundedBoxGeometry.js"></script>
+<script src="three.min.js"></script>
+<script>/* three.js r147 CSS3DRenderer (MIT) */
+( function () {
+
+	/**
+ * Based on http://www.emagix.net/academic/mscs-project/item/camera-sync-with-css3-and-webgl-threejs
+ */
+
+	const _position = new THREE.Vector3();
+	const _quaternion = new THREE.Quaternion();
+	const _scale = new THREE.Vector3();
+	class CSS3DObject extends THREE.Object3D {
+
+		constructor( element = document.createElement( 'div' ) ) {
+
+			super();
+			this.isCSS3DObject = true;
+			this.element = element;
+			this.element.style.position = 'absolute';
+			this.element.style.pointerEvents = 'auto';
+			this.element.style.userSelect = 'none';
+			this.element.setAttribute( 'draggable', false );
+			this.addEventListener( 'removed', function () {
+
+				this.traverse( function ( object ) {
+
+					if ( object.element instanceof Element && object.element.parentNode !== null ) {
+
+						object.element.parentNode.removeChild( object.element );
+
+					}
+
+				} );
+
+			} );
+
+		}
+		copy( source, recursive ) {
+
+			super.copy( source, recursive );
+			this.element = source.element.cloneNode( true );
+			return this;
+
+		}
+
+	}
+	class CSS3DSprite extends CSS3DObject {
+
+		constructor( element ) {
+
+			super( element );
+			this.isCSS3DSprite = true;
+			this.rotation2D = 0;
+
+		}
+		copy( source, recursive ) {
+
+			super.copy( source, recursive );
+			this.rotation2D = source.rotation2D;
+			return this;
+
+		}
+
+	}
+
+	//
+
+	const _matrix = new THREE.Matrix4();
+	const _matrix2 = new THREE.Matrix4();
+	class CSS3DRenderer {
+
+		constructor( parameters = {} ) {
+
+			const _this = this;
+			let _width, _height;
+			let _widthHalf, _heightHalf;
+			const cache = {
+				camera: {
+					fov: 0,
+					style: ''
+				},
+				objects: new WeakMap()
+			};
+			const domElement = parameters.element !== undefined ? parameters.element : document.createElement( 'div' );
+			domElement.style.overflow = 'hidden';
+			this.domElement = domElement;
+			const cameraElement = document.createElement( 'div' );
+			cameraElement.style.transformStyle = 'preserve-3d';
+			cameraElement.style.pointerEvents = 'none';
+			domElement.appendChild( cameraElement );
+			this.getSize = function () {
+
+				return {
+					width: _width,
+					height: _height
+				};
+
+			};
+
+			this.render = function ( scene, camera ) {
+
+				const fov = camera.projectionMatrix.elements[ 5 ] * _heightHalf;
+				if ( cache.camera.fov !== fov ) {
+
+					domElement.style.perspective = camera.isPerspectiveCamera ? fov + 'px' : '';
+					cache.camera.fov = fov;
+
+				}
+
+				if ( scene.matrixWorldAutoUpdate === true ) scene.updateMatrixWorld();
+				if ( camera.parent === null && camera.matrixWorldAutoUpdate === true ) camera.updateMatrixWorld();
+				let tx, ty;
+				if ( camera.isOrthographicCamera ) {
+
+					tx = - ( camera.right + camera.left ) / 2;
+					ty = ( camera.top + camera.bottom ) / 2;
+
+				}
+
+				const cameraCSSMatrix = camera.isOrthographicCamera ? 'scale(' + fov + ')' + 'translate(' + epsilon( tx ) + 'px,' + epsilon( ty ) + 'px)' + getCameraCSSMatrix( camera.matrixWorldInverse ) : 'translateZ(' + fov + 'px)' + getCameraCSSMatrix( camera.matrixWorldInverse );
+				const style = cameraCSSMatrix + 'translate(' + _widthHalf + 'px,' + _heightHalf + 'px)';
+				if ( cache.camera.style !== style ) {
+
+					cameraElement.style.transform = style;
+					cache.camera.style = style;
+
+				}
+
+				renderObject( scene, scene, camera, cameraCSSMatrix );
+
+			};
+
+			this.setSize = function ( width, height ) {
+
+				_width = width;
+				_height = height;
+				_widthHalf = _width / 2;
+				_heightHalf = _height / 2;
+				domElement.style.width = width + 'px';
+				domElement.style.height = height + 'px';
+				cameraElement.style.width = width + 'px';
+				cameraElement.style.height = height + 'px';
+
+			};
+
+			function epsilon( value ) {
+
+				return Math.abs( value ) < 1e-10 ? 0 : value;
+
+			}
+
+			function getCameraCSSMatrix( matrix ) {
+
+				const elements = matrix.elements;
+				return 'matrix3d(' + epsilon( elements[ 0 ] ) + ',' + epsilon( - elements[ 1 ] ) + ',' + epsilon( elements[ 2 ] ) + ',' + epsilon( elements[ 3 ] ) + ',' + epsilon( elements[ 4 ] ) + ',' + epsilon( - elements[ 5 ] ) + ',' + epsilon( elements[ 6 ] ) + ',' + epsilon( elements[ 7 ] ) + ',' + epsilon( elements[ 8 ] ) + ',' + epsilon( - elements[ 9 ] ) + ',' + epsilon( elements[ 10 ] ) + ',' + epsilon( elements[ 11 ] ) + ',' + epsilon( elements[ 12 ] ) + ',' + epsilon( - elements[ 13 ] ) + ',' + epsilon( elements[ 14 ] ) + ',' + epsilon( elements[ 15 ] ) + ')';
+
+			}
+
+			function getObjectCSSMatrix( matrix ) {
+
+				const elements = matrix.elements;
+				const matrix3d = 'matrix3d(' + epsilon( elements[ 0 ] ) + ',' + epsilon( elements[ 1 ] ) + ',' + epsilon( elements[ 2 ] ) + ',' + epsilon( elements[ 3 ] ) + ',' + epsilon( - elements[ 4 ] ) + ',' + epsilon( - elements[ 5 ] ) + ',' + epsilon( - elements[ 6 ] ) + ',' + epsilon( - elements[ 7 ] ) + ',' + epsilon( elements[ 8 ] ) + ',' + epsilon( elements[ 9 ] ) + ',' + epsilon( elements[ 10 ] ) + ',' + epsilon( elements[ 11 ] ) + ',' + epsilon( elements[ 12 ] ) + ',' + epsilon( elements[ 13 ] ) + ',' + epsilon( elements[ 14 ] ) + ',' + epsilon( elements[ 15 ] ) + ')';
+				return 'translate(-50%,-50%)' + matrix3d;
+
+			}
+
+			function renderObject( object, scene, camera, cameraCSSMatrix ) {
+
+				if ( object.isCSS3DObject ) {
+
+					const visible = object.visible === true && object.layers.test( camera.layers ) === true;
+					object.element.style.display = visible === true ? '' : 'none';
+					if ( visible === true ) {
+
+						object.onBeforeRender( _this, scene, camera );
+						let style;
+						if ( object.isCSS3DSprite ) {
+
+							// http://swiftcoder.wordpress.com/2008/11/25/constructing-a-billboard-matrix/
+
+							_matrix.copy( camera.matrixWorldInverse );
+							_matrix.transpose();
+							if ( object.rotation2D !== 0 ) _matrix.multiply( _matrix2.makeRotationZ( object.rotation2D ) );
+							object.matrixWorld.decompose( _position, _quaternion, _scale );
+							_matrix.setPosition( _position );
+							_matrix.scale( _scale );
+							_matrix.elements[ 3 ] = 0;
+							_matrix.elements[ 7 ] = 0;
+							_matrix.elements[ 11 ] = 0;
+							_matrix.elements[ 15 ] = 1;
+							style = getObjectCSSMatrix( _matrix );
+
+						} else {
+
+							style = getObjectCSSMatrix( object.matrixWorld );
+
+						}
+
+						const element = object.element;
+						const cachedObject = cache.objects.get( object );
+						if ( cachedObject === undefined || cachedObject.style !== style ) {
+
+							element.style.transform = style;
+							const objectData = {
+								style: style
+							};
+							cache.objects.set( object, objectData );
+
+						}
+
+						if ( element.parentNode !== cameraElement ) {
+
+							cameraElement.appendChild( element );
+
+						}
+
+						object.onAfterRender( _this, scene, camera );
+
+					}
+
+				}
+
+				for ( let i = 0, l = object.children.length; i < l; i ++ ) {
+
+					renderObject( object.children[ i ], scene, camera, cameraCSSMatrix );
+
+				}
+
+			}
+
+		}
+
+	}
+
+	THREE.CSS3DObject = CSS3DObject;
+	THREE.CSS3DRenderer = CSS3DRenderer;
+	THREE.CSS3DSprite = CSS3DSprite;
+
+} )();
+
+</script>
+<script>/* three.js r147 RoundedBoxGeometry (MIT) */
+( function () {
+
+	const _tempNormal = new THREE.Vector3();
+	function getUv( faceDirVector, normal, uvAxis, projectionAxis, radius, sideLength ) {
+
+		const totArcLength = 2 * Math.PI * radius / 4;
+
+		// length of the planes between the arcs on each axis
+		const centerLength = Math.max( sideLength - 2 * radius, 0 );
+		const halfArc = Math.PI / 4;
+
+		// Get the vector projected onto the Y plane
+		_tempNormal.copy( normal );
+		_tempNormal[ projectionAxis ] = 0;
+		_tempNormal.normalize();
+
+		// total amount of UV space alloted to a single arc
+		const arcUvRatio = 0.5 * totArcLength / ( totArcLength + centerLength );
+
+		// the distance along one arc the point is at
+		const arcAngleRatio = 1.0 - _tempNormal.angleTo( faceDirVector ) / halfArc;
+		if ( Math.sign( _tempNormal[ uvAxis ] ) === 1 ) {
+
+			return arcAngleRatio * arcUvRatio;
+
+		} else {
+
+			// total amount of UV space alloted to the plane between the arcs
+			const lenUv = centerLength / ( totArcLength + centerLength );
+			return lenUv + arcUvRatio + arcUvRatio * ( 1.0 - arcAngleRatio );
+
+		}
+
+	}
+
+	class RoundedBoxGeometry extends THREE.BoxGeometry {
+
+		constructor( width = 1, height = 1, depth = 1, segments = 2, radius = 0.1 ) {
+
+			// ensure segments is odd so we have a plane connecting the rounded corners
+			segments = segments * 2 + 1;
+
+			// ensure radius isn't bigger than shortest side
+			radius = Math.min( width / 2, height / 2, depth / 2, radius );
+			super( 1, 1, 1, segments, segments, segments );
+
+			// if we just have one segment we're the same as a regular box
+			if ( segments === 1 ) return;
+			const geometry2 = this.toNonIndexed();
+			this.index = null;
+			this.attributes.position = geometry2.attributes.position;
+			this.attributes.normal = geometry2.attributes.normal;
+			this.attributes.uv = geometry2.attributes.uv;
+
+			//
+
+			const position = new THREE.Vector3();
+			const normal = new THREE.Vector3();
+			const box = new THREE.Vector3( width, height, depth ).divideScalar( 2 ).subScalar( radius );
+			const positions = this.attributes.position.array;
+			const normals = this.attributes.normal.array;
+			const uvs = this.attributes.uv.array;
+			const faceTris = positions.length / 6;
+			const faceDirVector = new THREE.Vector3();
+			const halfSegmentSize = 0.5 / segments;
+			for ( let i = 0, j = 0; i < positions.length; i += 3, j += 2 ) {
+
+				position.fromArray( positions, i );
+				normal.copy( position );
+				normal.x -= Math.sign( normal.x ) * halfSegmentSize;
+				normal.y -= Math.sign( normal.y ) * halfSegmentSize;
+				normal.z -= Math.sign( normal.z ) * halfSegmentSize;
+				normal.normalize();
+				positions[ i + 0 ] = box.x * Math.sign( position.x ) + normal.x * radius;
+				positions[ i + 1 ] = box.y * Math.sign( position.y ) + normal.y * radius;
+				positions[ i + 2 ] = box.z * Math.sign( position.z ) + normal.z * radius;
+				normals[ i + 0 ] = normal.x;
+				normals[ i + 1 ] = normal.y;
+				normals[ i + 2 ] = normal.z;
+				const side = Math.floor( i / faceTris );
+				switch ( side ) {
+
+					case 0:
+						// right
+
+						// generate UVs along Z then Y
+						faceDirVector.set( 1, 0, 0 );
+						uvs[ j + 0 ] = getUv( faceDirVector, normal, 'z', 'y', radius, depth );
+						uvs[ j + 1 ] = 1.0 - getUv( faceDirVector, normal, 'y', 'z', radius, height );
+						break;
+					case 1:
+						// left
+
+						// generate UVs along Z then Y
+						faceDirVector.set( - 1, 0, 0 );
+						uvs[ j + 0 ] = 1.0 - getUv( faceDirVector, normal, 'z', 'y', radius, depth );
+						uvs[ j + 1 ] = 1.0 - getUv( faceDirVector, normal, 'y', 'z', radius, height );
+						break;
+					case 2:
+						// top
+
+						// generate UVs along X then Z
+						faceDirVector.set( 0, 1, 0 );
+						uvs[ j + 0 ] = 1.0 - getUv( faceDirVector, normal, 'x', 'z', radius, width );
+						uvs[ j + 1 ] = getUv( faceDirVector, normal, 'z', 'x', radius, depth );
+						break;
+					case 3:
+						// bottom
+
+						// generate UVs along X then Z
+						faceDirVector.set( 0, - 1, 0 );
+						uvs[ j + 0 ] = 1.0 - getUv( faceDirVector, normal, 'x', 'z', radius, width );
+						uvs[ j + 1 ] = 1.0 - getUv( faceDirVector, normal, 'z', 'x', radius, depth );
+						break;
+					case 4:
+						// front
+
+						// generate UVs along X then Y
+						faceDirVector.set( 0, 0, 1 );
+						uvs[ j + 0 ] = 1.0 - getUv( faceDirVector, normal, 'x', 'y', radius, width );
+						uvs[ j + 1 ] = 1.0 - getUv( faceDirVector, normal, 'y', 'x', radius, height );
+						break;
+					case 5:
+						// back
+
+						// generate UVs along X then Y
+						faceDirVector.set( 0, 0, - 1 );
+						uvs[ j + 0 ] = getUv( faceDirVector, normal, 'x', 'y', radius, width );
+						uvs[ j + 1 ] = 1.0 - getUv( faceDirVector, normal, 'y', 'x', radius, height );
+						break;
+
+				}
+
+			}
+
+		}
+
+	}
+
+	THREE.RoundedBoxGeometry = RoundedBoxGeometry;
+
+} )();
+
+</script>
 <script>
 if(!window.THREE){ document.getElementById('loading').textContent = 'The 3D library didn’t load. Check your connection and reload.'; }
 /* ================= 3D bay ================= */
