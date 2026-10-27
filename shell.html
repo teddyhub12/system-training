@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ward 7, Bay B</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --stage:#0b0d10;
+  /* labels on things in the room: Keystream green chips */
+  --chip:#F2F5F0; --chip-text:#1B3A44; --chip-line:#C9D6CF; --ring:#84E5AB;
+  /* guidance (heads-up display, captions, menus): quiet dark glass over the room */
+  --glass:rgba(17,21,27,.62); --glass-strong:rgba(17,21,27,.9); --line:rgba(255,255,255,.14);
+  --ink:#F2F4F6; --ink-2:rgba(242,244,246,.72); --accent:#8EC5FF; --accent-ink:#0B1B2B; --ok:#A6E3BA; --err:#FFB3A7;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  background:var(--stage);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){ --chip:#21454F; --chip-text:#C2F2D5; --chip-line:#2F5A63; --glass:rgba(17,21,27,.62); --ink:#F2F4F6; color-scheme:dark; }
+}
+:root[data-theme="dark"]{ --chip:#21454F; --chip-text:#C2F2D5; --chip-line:#2F5A63; --glass:rgba(17,21,27,.62); --ink:#F2F4F6; color-scheme:dark; }
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0}
+body{background:var(--stage);font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;overflow:hidden;color:var(--ink)}
+button,select,textarea{font:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.stage{position:relative;height:100%;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;outline:none;cursor:grab}
+.stage.dragging{cursor:grabbing}
+.stage .gl{position:absolute;inset:0;z-index:1;display:block}
+.stage .css3d{position:absolute!important;inset:0;z-index:0}
+.stage.computer .gl{pointer-events:none}
+.stage.computer{cursor:default}
+.flat{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden}
+.flat .epr{position:absolute;left:0;top:0;pointer-events:auto}
+
+.glass,.pill,.caption,.task,.toast,.menu{background:var(--glass);color:var(--ink);border:1px solid var(--line);-webkit-backdrop-filter:blur(10px) saturate(1.1);backdrop-filter:blur(10px) saturate(1.1)}
+@supports not ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){.glass,.pill,.caption,.task,.toast,.menu{background:var(--glass-strong)}}
+
+/* labels on things in the room */
+.labels{position:absolute;inset:0;z-index:2;pointer-events:none}
+.tag3d{position:absolute;left:0;top:0;pointer-events:auto;font-size:13px;font-weight:700;color:var(--chip-text);background:var(--chip);border:1px solid var(--chip-line);border-radius:999px;padding:3px 11px 3px 9px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+.tag3d::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ring);margin-right:6px;vertical-align:1px;box-shadow:0 0 0 2px rgba(27,58,68,.35)}
+.tag3d:hover{filter:brightness(1.05)}
+.tag3d.where{animation:where 1.3s ease-in-out infinite}
+@keyframes where{0%,100%{box-shadow:0 0 0 3px var(--ring),0 2px 8px rgba(0,0,0,.35)}50%{box-shadow:0 0 0 9px rgba(132,229,171,.25),0 2px 8px rgba(0,0,0,.35)}}
+.tooltip{position:absolute;left:0;top:0;z-index:3;pointer-events:none;font-size:13px;font-weight:700;color:var(--chip-text);background:var(--chip);border:1px solid var(--chip-line);border-radius:8px;padding:3px 9px;white-space:nowrap}
+
+.bar{position:absolute;z-index:4;left:12px;right:12px;top:12px;display:flex;gap:8px;justify-content:flex-end;align-items:flex-start;pointer-events:none}
+.bar > *{pointer-events:auto}
+.tools{display:flex;gap:6px}
+.pill{border-radius:8px;min-height:34px;padding:5px 11px;cursor:pointer;font-weight:700;font-size:13px}
+.pill:hover{border-color:var(--accent)}
+.train-btn{margin-right:auto;font-size:14px;padding:7px 14px;animation:trainPulse 2.4s ease-out infinite}
+.train-btn::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ring);margin-right:8px;vertical-align:1px}
+.train-btn.seen{animation:none}
+@keyframes trainPulse{0%{box-shadow:0 0 0 0 rgba(132,229,171,.55)}70%{box-shadow:0 0 0 12px rgba(132,229,171,0)}100%{box-shadow:0 0 0 0 rgba(132,229,171,0)}}
+.computer .train-btn{display:none}
+
+/* close-up caption: the thing's name and what you can do with it */
+.caption{position:absolute;z-index:4;left:50%;bottom:16px;transform:translateX(-50%);width:max-content;max-width:min(560px,calc(100% - 24px));border-radius:10px;padding:8px 14px;font-size:14px;line-height:1.4;text-align:center}
+.caption:empty,.computer .caption{display:none}
+.acts{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:7px;align-items:center}
+.act{border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);border-radius:7px;padding:5px 12px;font-weight:700;font-size:13px;cursor:pointer;min-height:32px}
+.act.sec{background:transparent;color:var(--ink);border-color:var(--line)}
+.act.chip{background:transparent;color:var(--ink);border-color:var(--line);font-weight:400;min-height:30px;padding:4px 10px}
+.act.chip:hover,.act.sec:hover{border-color:var(--accent)}
+.act.mini{min-height:26px;padding:2px 9px;font-size:12px}
+.back{position:absolute;z-index:4;left:12px;bottom:16px}
+.focused .caption{bottom:60px}
+@media (min-width:760px){.focused .caption{bottom:16px}}
+
+/* feedback: a short note that fades */
+.toast{position:absolute;z-index:5;left:50%;bottom:96px;transform:translateX(-50%);width:max-content;max-width:min(480px,calc(100% - 24px));border-radius:999px;padding:7px 16px;font-size:14px;font-weight:700;pointer-events:none;animation:toastIn .25s ease-out}
+.toast.ok{color:var(--ok)} .toast.err{color:var(--err);border-radius:12px}
+.computer .toast{bottom:auto;top:14px}
+@keyframes toastIn{from{transform:translate(-50%,8px)}to{transform:translate(-50%,0)}}
+
+/* the heads-up display during a scenario */
+.task{position:absolute;z-index:4;left:12px;top:12px;width:min(320px,calc(100% - 150px));border-radius:10px;padding:9px 12px 8px;font-size:14px;line-height:1.35}
+.h-top{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2);font-weight:700}
+.h-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h-title em{font-style:normal;color:var(--accent);margin-left:4px}
+.h-dots{display:flex;gap:3px;margin-left:auto}
+.h-dots i{width:6px;height:6px;border-radius:50%;background:var(--line)}
+.h-dots i.d{background:var(--ink-2)} .h-dots i.c{background:var(--accent)}
+.h-count{min-width:26px;text-align:right}
+.h-step{font-weight:700;font-size:15px;margin:3px 0 2px}
+.h-hand{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:7px;font-size:13px}
+.h-hand .lbl{color:var(--ink-2);font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:1px 4px 1px 9px}
+.chip button{border:0;background:none;color:var(--ink-2);cursor:pointer;font-size:15px;line-height:1;padding:0 4px}
+.chip button:hover{color:var(--ink)}
+.chip.ok{color:var(--ok);border-color:rgba(166,227,186,.55)}
+.chip.pop{animation:chipPop .5s ease-out}
+@keyframes chipPop{0%{transform:scale(.6)}55%{transform:scale(1.12)}100%{transform:scale(1)}}
+.h-hint{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:13px;color:var(--ink)}
+.h-hint .act{display:block;margin-top:6px}
+.h-acts{display:flex;gap:14px;margin-top:6px}
+.h-acts button{border:0;background:none;color:var(--ink-2);font-size:12px;padding:0;cursor:pointer;text-decoration:underline;border-radius:4px}
+.h-acts button:hover{color:var(--ink)}
+.h-acts button.nudge{color:var(--accent);animation:nudge 1.6s ease-in-out infinite}
+@keyframes nudge{50%{box-shadow:0 0 0 4px rgba(142,197,255,.25)}}
+.computer .task{width:auto;max-width:min(620px,calc(100% - 220px));padding:6px 12px}
+.computer .h-top,.computer .h-hand,.computer .h-acts,.computer .h-hint{display:none}
+.computer .h-step{margin:0;font-size:14px}
+.task.bump{animation:bump 1.2s ease-out}
+@keyframes bump{0%{box-shadow:0 0 0 0 rgba(142,197,255,.6)}100%{box-shadow:0 0 0 12px rgba(142,197,255,0)}}
+
+.menu-bg{position:absolute;inset:0;z-index:8;background:rgba(6,9,12,.4);display:flex;align-items:center;justify-content:center;padding:16px}
+.menu{background:var(--glass-strong);border-radius:14px;padding:20px 20px 14px;width:min(480px,100%);max-height:100%;overflow:auto;box-shadow:0 16px 40px rgba(0,0,0,.4)}
+.menu h2{margin:0 0 4px;font-size:20px}
+.menu h3{font-size:14px;margin:12px 0 4px}
+.menu p{margin:0 0 14px;color:var(--ink-2);line-height:1.45;font-size:14px}
+.menu ul{margin:0 0 12px;padding-left:18px;line-height:1.45;font-size:14px}
+.menu .clean{color:var(--ink);font-weight:700}
+.scn{border:1px solid var(--line);background:rgba(255,255,255,.04);border-radius:10px;padding:12px 14px;margin-bottom:8px}
+.scn b{display:block;font-size:15px;margin-bottom:2px}
+.scn span{display:block;font-size:13px;color:var(--ink-2);line-height:1.4}
+.menu .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.linkish{border:0;background:none;color:var(--ink-2);text-decoration:underline;padding:6px 0 0;cursor:pointer;font-size:13px}
+
+.rotate{position:absolute;z-index:4;inset:auto 12px 64px;border-radius:10px;padding:9px 12px;font-size:13px;text-align:center}
+.loading{position:absolute;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;color:#cfd8dc;font-size:15px;background:var(--stage)}
+@media (max-width:600px){.caption{font-size:13px}.task{font-size:13px}.toast{bottom:110px}}
+@media (prefers-reduced-motion:reduce){.train-btn,.task.bump,.toast,.tag3d.where,.h-acts button.nudge,.chip.pop{animation:none}.tag3d.where{box-shadow:0 0 0 3px var(--ring)}.train-btn{border-color:var(--ring)}}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+[hidden]{display:none!important}
+/*EPRCSS*/
+</style>
+</head>
+<body>
+<div class="stage" id="stage" tabindex="0" aria-label="A hospital bay in 3D. Drag to look around, scroll or pinch to zoom. Use the labels to look at things.">
+  <div class="labels" id="labels"></div>
+  <div class="flat" id="flat"></div>
+  <div class="tooltip" id="tooltip" hidden></div>
+  <div class="bar">
+    <button class="pill train-btn" id="trainBtn" type="button">Complete scenario training</button>
+    <div class="tools">
+      <button class="pill" id="scnBtn" type="button">Scenarios</button>
+      <button class="pill" id="soundBtn" type="button" aria-pressed="true">Sound on</button>
+    </div>
+  </div>
+  <div class="task" id="task" role="region" hidden></div>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <div class="caption" id="caption" aria-live="polite"></div>
+  <button class="pill back" id="backBtn" type="button" hidden>Back to the bay</button>
+  <div class="rotate glass" id="rotateHint" hidden>Turn your phone sideways to use the computer.</div>
+  <div class="menu-bg" id="menu" hidden><div class="menu" role="dialog" aria-modal="true" aria-labelledby="menuTitle"></div></div>
+  <div class="menu-bg" id="done" hidden><div class="menu" role="dialog" aria-modal="true" aria-labelledby="doneTitle"></div></div>
+  <div class="loading" id="loading">Setting up the bay</div>
+</div>
+<script src="__THREE__/build/three.min.js"></script>
+<script src="__THREE__/examples/js/renderers/CSS3DRenderer.js"></script>
+<script src="__THREE__/examples/js/geometries/RoundedBoxGeometry.js"></script>
+<script>
+if(!window.THREE){ document.getElementById('loading').textContent = 'The 3D library didn’t load. Check your connection and reload.'; }
+/*SCENE*/
+/*EPR*/
+/*TRAIN*/
+/* start */
+resize();
+camera.position.copy(HOME.pos); camera.quaternion.copy(poseFrom(HOME.pos, HOME.target)); camera.fov = homeFov(); look.fov = homeFov(); setLookFromQuat(camera.quaternion);
+fire(); drawPump(0); drawClock();
+requestAnimationFrame(frame);
+document.getElementById('loading').hidden = true;
+</script>
+</body>
+</html>
